@@ -1,0 +1,72 @@
+name: Gitflow CI
+
+on:
+  push:
+    branches: [ dev, feature-*, hotfix-*, release-* ]
+  pull_request:
+    branches: [ dev, main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up environment
+      run: |
+        echo "Setting up environment"
+
+    - name: Run tests
+      run: |
+        echo "Running tests"
+
+    - name: Build
+      run: |
+        echo "Building project"
+
+  feature_workflow:
+    needs: build
+    if: startsWith(github.ref, 'refs/heads/feature/')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Create pull request to dev
+      uses: peter-evans/create-pull-request@v3
+      with:
+        branch: dev
+        title: "Merge feature branch into dev"
+        body: "Automated PR for feature integration"
+
+  release_workflow:
+    needs: build
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Run UAT tests
+      run: |
+        echo "Running UAT tests"
+    - name: Create pull request to main
+      uses: peter-evans/create-pull-request@v3
+      with:
+        branch: main
+        title: "Release to production"
+        body: "Automated PR for release to production"
+
+  hotfix_workflow:
+    needs: build
+    if: startsWith(github.ref, 'refs/heads/hotfix/')
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Create pull request to main
+      uses: peter-evans/create-pull-request@v3
+      with:
+        branch: main
+        title: "Hotfix to production"
+        body: "Automated PR for hotfix to production"
+    - name: Create pull request to dev
+      uses: peter-evans/create-pull-request@v3
+      with:
+        branch: dev
+        title: "Merge hotfix into dev"
+        body: "Automated PR to sync hotfix with dev branch"
