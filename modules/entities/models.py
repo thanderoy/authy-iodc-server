@@ -64,14 +64,13 @@ class GroupManager(EntityManager):
         return self.model.filter(entity_type=self.model.EntityType.GROUP)
 
 
-
 class Entity(AuthyBaseModel, AbstractBaseUser, PermissionsMixin):
     class EntityType(models.TextChoices):
         PERSON = "PSN", "Person"
         GROUP = "GRP", "Group"
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ('first_name', 'last_name', )
+    REQUIRED_FIELDS = ('first_name', 'last_name',)
 
     # Entity details
     first_name = models.CharField(max_length=50, blank=False, null=False)
