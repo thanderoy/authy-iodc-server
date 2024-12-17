@@ -140,6 +140,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+env.sh
 
 # Spyder project settings
 .spyderproject
@@ -301,4 +302,5 @@ pyrightconfig.json
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,linux,django,python
 
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
-
+oidc.key
+junitxml_report/*
