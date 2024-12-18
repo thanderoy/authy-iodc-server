@@ -64,7 +64,6 @@ class GroupManager(EntityManager):
         return self.model.filter(entity_type=self.model.EntityType.GROUP)
 
 
-
 class Entity(AuthyBaseModel, AbstractBaseUser, PermissionsMixin):
     class EntityType(models.TextChoices):
         PERSON = "PSN", "Person"
