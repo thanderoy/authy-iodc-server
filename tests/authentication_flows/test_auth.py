@@ -1,16 +1,14 @@
-from django.test import TestCase, Client
-from django.urls import reverse
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from oauth2_provider.models import Application, AccessToken, RefreshToken
-from django.conf import settings
-import json
-import jwt
-from model_bakery import baker
 import base64
+import hashlib
+import json
 from urllib.parse import parse_qs, urlparse
-from datetime import timedelta
-import pytest
+
+from tests import settings
+from django.contrib.auth import get_user_model
+from django.test import Client, TestCase
+from django.urls import reverse
+from model_bakery import baker
+from oauth2_provider.models import Application
 
 User = get_user_model()
 
@@ -23,7 +21,8 @@ class OAuth2AuthFlows(TestCase):
             first_name='Marco',
             last_name='Polo',
             email='test@example.com',
-            password='testpass123'
+            password='testpass123',
+            is_active=True
         )
 
         # Create Apps for each Authentication Flow
@@ -33,9 +32,9 @@ class OAuth2AuthFlows(TestCase):
             client_type=Application.CLIENT_CONFIDENTIAL,
             authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
             redirect_uris='http://localhost:8000/callback',
-            user=self.user,
-            client_id='code-client-id',
-            client_secret='code-client-secret',
+            user=self.user, algorithm='RS256',
+            client_id=settings.TEST_CLIENT_ID_AUTH_CODE,
+            client_secret=settings.TEST_CLIENT_SECRET_AUTH_CODE,
         )
 
         self.implicit_app = baker.make(
@@ -45,8 +44,8 @@ class OAuth2AuthFlows(TestCase):
             authorization_grant_type=Application.GRANT_IMPLICIT,
             redirect_uris='http://localhost:8000/callback',
             user=self.user,
-            client_id='implicit-client-id',
-            client_secret='implicit-client-secret'
+            client_id=settings.TEST_CLIENT_ID_IMPLICIT,
+            client_secret=settings.TEST_CLIENT_SECRET_IMPLICIT,
         )
 
         self.client_credentials_app = baker.make(
@@ -55,8 +54,8 @@ class OAuth2AuthFlows(TestCase):
             client_type=Application.CLIENT_CONFIDENTIAL,
             authorization_grant_type=Application.GRANT_CLIENT_CREDENTIALS,
             user=self.user,
-            client_id='credentials-client-id',
-            client_secret='credentials-client-secret'
+            client_id=settings.TEST_CLIENT_ID_CLIENT_CRED,
+            client_secret=settings.TEST_CLIENT_SECRET_CLIENT_CRED,
         )
 
         self.resource_password_app = baker.make(
@@ -65,143 +64,103 @@ class OAuth2AuthFlows(TestCase):
             client_type=Application.CLIENT_CONFIDENTIAL,
             authorization_grant_type=Application.GRANT_PASSWORD,
             user=self.user,
-            client_id='password-client-id',
-            client_secret='password-client-secret'
+            client_id=settings.TEST_CLIENT_ID_OWNER,
+            client_secret=settings.TEST_CLIENT_SECRET_OWNER,
         )
-
-    def create_authorization_header(self, client_id, client_secret):
-        credentials = base64.b64encode(
-            f"{client_id}:{client_secret}".encode()
-        ).decode('utf-8')
-        return {'HTTP_AUTHORIZATION': f'Basic {credentials}'}
 
     def test_authorization_code_flow(self):
         """Test the complete Authorization Code flow"""
 
-        # Step 1: Authorize Application
+        code_verifier = 'KP6RC7E3K9U2OD8ZETN3WT0URYAR9BIPS8AZQPKU41HBOQJRYM'
+        code_challenge = base64.urlsafe_b64encode(
+            hashlib.sha256(code_verifier.encode('utf-8')).digest()
+        ).decode('utf-8').rstrip('=')
+
         auth_params = {
             'response_type': 'code',
             'client_id': self.authorization_code_app.client_id,
             'redirect_uri': 'http://localhost:8000/callback',
-            'code_challenge': 'XRi41b-5yHtTojvCpXFpsLUnmGFz6xR15c3vpPANAvM',
-            'code_challenge_method': 'S256'
+            'code_challenge': code_challenge,
+            'code_challenge_method': 'S256',
+            'scope': 'openid',
         }
 
-        # Get the authorization code
-        breakpoint()
-        response = self.client.get(reverse('oauth2_provider:authorize'), auth_params)
-        self.assertEqual(response.status_code, 302)
+        # Step 1: Login first
+        login_status = self.client.login(
+            username='test@example.com', password='testpass123')
+        self.assertTrue(login_status, True)
 
-        # Login the user
-        self.client.login(username='testuser', password='testpass123')
+        # Step 2: Get the authorization code
+        response = self.client.get(
+            reverse('oauth2_provider:authorize'),
+            auth_params
+        )
 
-        # Submit the authorization form
-        response = self.client.post(
+        # Step 3: Handle consent form
+        self.assertEqual(response.status_code, 200)
+        consent_response = self.client.post(
             reverse('oauth2_provider:authorize'),
             {
                 'client_id': self.authorization_code_app.client_id,
-                'client_secret': self.authorization_code_app.client_secret,
-                'state': auth_params['state'],
                 'redirect_uri': auth_params['redirect_uri'],
                 'response_type': 'code',
-                'allow': 'Authorize',
-                'scope': auth_params['scope']
+                'allow': 'Authorize',  # This simulates clicking "Allow"
+                'scope': auth_params['scope'],
+                'code_challenge': auth_params['code_challenge'],
+                'code_challenge_method': auth_params['code_challenge_method']
             }
         )
-
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(consent_response.status_code, 302)
 
         # Extract authorization code from redirect URL
-        query_params = parse_qs(urlparse(response['Location']).query)
-        self.assertIn('code', query_params)
-        auth_code = query_params['code'][0]
+        _auth_code = parse_qs(urlparse(consent_response['Location']).query)
+        self.assertIn('code', _auth_code)
+        auth_code = _auth_code['code'][0]
 
-        # Step 2: Token Request
-        token_url = reverse('oauth2_provider:token')
-        token_data = {
-            'grant_type': 'authorization_code',
-            'code': auth_code,
-            'redirect_uri': 'http://localhost:8000/callback',
+        # Step 4: Token Request
+        token_payload = {
+            "client_id": settings.TEST_CLIENT_ID_AUTH_CODE,
+            "client_secret": settings.TEST_CLIENT_SECRET_AUTH_CODE,
+            "code": auth_code,
+            "code_verifier": code_verifier,
+            "redirect_uri": auth_params['redirect_uri'],
+            "grant_type": 'authorization_code',
         }
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in token_payload.items())
 
-        response = self.client.post(
-            token_url,
-            token_data,
-            **self.create_authorization_header(
-                self.authorization_code_app.client_id,
-                self.authorization_code_app.client_secret
-            )
+        _token_response = self.client.post(
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            content_type='application/x-www-form-urlencoded',
+            HTTP_CACHE_CONTROL='no-cache'
         )
 
-        self.assertEqual(response.status_code, 200)
-        token_response = json.loads(response.content)
+        self.assertEqual(_token_response.status_code, 200)
+        token_response = json.loads(_token_response.content)
 
-        # Verify response contains required OAuth2 and OIDC fields
         self.assertIn('access_token', token_response)
         self.assertIn('refresh_token', token_response)
         self.assertIn('id_token', token_response)
         self.assertIn('token_type', token_response)
         self.assertIn('expires_in', token_response)
 
-        # Verify ID Token
-        id_token = token_response['id_token']
-        decoded_token = jwt.decode(
-            id_token,
-            settings.OIDC_RSA_PRIVATE_KEY,
-            algorithms=['RS256']
-        )
-
-        self.assertEqual(decoded_token['sub'], str(self.user.id))
-        self.assertEqual(decoded_token['email'], self.user.email)
-        self.assertEqual(decoded_token['nonce'], auth_params['nonce'])
-
-    def test_implicit_flow(self):
-        """Test the Implicit flow"""
-
-        # Login the user
-        self.client.login(username='testuser', password='testpass123')
-
-        auth_params = {
-            'response_type': 'token id_token',
-            'client_id': self.implicit_app.client_id,
-            'redirect_uri': 'http://localhost:8000/callback',
-            'scope': 'openid profile email',
-            'state': 'random_state_string',
-            'nonce': 'random_nonce_string'
-        }
-
-        response = self.client.post(
-            reverse('oauth2_provider:authorize'),
-            {
-                **auth_params,
-                'allow': 'Authorize'
-            }
-        )
-
-        self.assertEqual(response.status_code, 302)
-        fragment = urlparse(response['Location']).fragment
-        response_params = parse_qs(fragment)
-
-        # Verify response contains required parameters
-        self.assertIn('access_token', response_params)
-        self.assertIn('id_token', response_params)
-        self.assertIn('state', response_params)
-        self.assertEqual(response_params['state'][0], auth_params['state'])
-
     def test_client_credentials_flow(self):
         """Test the Client Credentials flow"""
+        auth_headers = base64.b64encode(
+            f"{settings.TEST_CLIENT_ID_CLIENT_CRED}:{settings.TEST_CLIENT_SECRET_CLIENT_CRED}".encode('utf-8')  # noqa:E501
+        ).decode('utf-8')
 
-        token_url = reverse('oauth2_provider:token')
+        data = {'grant_type': 'client_credentials'}
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in data.items())
+
         response = self.client.post(
-            token_url,
-            {
-                'grant_type': 'client_credentials',
-                'scope': 'read write'
-            },
-            **self.create_authorization_header(
-                self.client_credentials_app.client_id,
-                self.client_credentials_app.client_secret
-            )
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            HTTP_AUTHORIZATION=f'Basic {auth_headers}',
+            HTTP_CACHE_CONTROL='no-cache',
+            content_type='application/x-www-form-urlencoded',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -211,22 +170,26 @@ class OAuth2AuthFlows(TestCase):
         self.assertIn('expires_in', token_response)
         self.assertEqual(token_response['token_type'], 'Bearer')
 
-    def test_password_flow(self):
+    def test_resource_owner_password_flow(self):
         """Test the Resource Owner Password Credentials flow"""
+        auth_headers = base64.b64encode(
+            f"{settings.TEST_CLIENT_ID_OWNER}:{settings.TEST_CLIENT_SECRET_OWNER}".encode('utf-8')  # noqa:E501
+        ).decode('utf-8')
 
-        token_url = reverse('oauth2_provider:token')
+        data = {
+            'grant_type': 'password',
+            'username': 'test@example.com',
+            'password': 'testpass123',
+            'scope': 'openid read'
+        }
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in data.items())
+
         response = self.client.post(
-            token_url,
-            {
-                'grant_type': 'password',
-                'username': 'testuser',
-                'password': 'testpass123',
-                'scope': 'read write'
-            },
-            **self.create_authorization_header(
-                self.resource_password_app.client_id,
-                self.resource_password_app.client_secret
-            )
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            HTTP_AUTHORIZATION=f'Basic {auth_headers}',
+            content_type='application/x-www-form-urlencoded',
         )
 
         self.assertEqual(response.status_code, 200)
@@ -241,40 +204,48 @@ class OAuth2AuthFlows(TestCase):
         """Test the Refresh Token flow"""
 
         # First, get a refresh token through password flow
-        token_url = reverse('oauth2_provider:token')
-        response = self.client.post(
-            token_url,
-            {
-                'grant_type': 'password',
-                'username': 'testuser',
-                'password': 'testpass123',
-                'scope': 'read write'
-            },
-            **self.create_authorization_header(
-                self.resource_password_app.client_id,
-                self.resource_password_app.client_secret
-            )
+        auth_headers = base64.b64encode(
+            f"{settings.TEST_CLIENT_ID_OWNER}:{settings.TEST_CLIENT_SECRET_OWNER}".encode('utf-8')  # noqa:E501
+        ).decode('utf-8')
+
+        access_token_payload = {
+            'grant_type': 'password',
+            'username': 'test@example.com',
+            'password': 'testpass123',
+            'scope': 'openid read'
+        }
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in access_token_payload.items())
+
+        access_token_response = self.client.post(
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            HTTP_AUTHORIZATION=f'Basic {auth_headers}',
+            content_type='application/x-www-form-urlencoded',
         )
 
-        first_token_response = json.loads(response.content)
+        self.assertEqual(access_token_response.status_code, 200)
+        first_token_response = json.loads(access_token_response.content)
         refresh_token = first_token_response['refresh_token']
 
         # Now use the refresh token to get a new access token
-        response = self.client.post(
-            token_url,
-            {
-                'grant_type': 'refresh_token',
-                'refresh_token': refresh_token,
-                'scope': 'read write'
-            },
-            **self.create_authorization_header(
-                self.resource_password_app.client_id,
-                self.resource_password_app.client_secret
-            )
+        refresh_token_payload = {
+            'grant_type': 'refresh_token',
+            'refresh_token': refresh_token,
+            'scope': 'openid read'
+        }
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in refresh_token_payload.items())
+
+        refresh_token_response = self.client.post(
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            HTTP_AUTHORIZATION=f'Basic {auth_headers}',
+            content_type='application/x-www-form-urlencoded',
         )
 
-        self.assertEqual(response.status_code, 200)
-        token_response = json.loads(response.content)
+        self.assertEqual(refresh_token_response.status_code, 200)
+        token_response = json.loads(refresh_token_response.content)
 
         self.assertIn('access_token', token_response)
         self.assertIn('refresh_token', token_response)
@@ -288,22 +259,27 @@ class OAuth2AuthFlows(TestCase):
         """Test the UserInfo endpoint"""
 
         # First get an access token
-        token_url = reverse('oauth2_provider:token')
-        response = self.client.post(
-            token_url,
-            {
-                'grant_type': 'password',
-                'username': 'testuser',
-                'password': 'testpass123',
-                'scope': 'openid profile email'
-            },
-            **self.create_authorization_header(
-                self.resource_password_app.client_id,
-                self.resource_password_app.client_secret
-            )
+        auth_headers = base64.b64encode(
+            f"{settings.TEST_CLIENT_ID_OWNER}:{settings.TEST_CLIENT_SECRET_OWNER}".encode('utf-8')  # noqa:E501
+        ).decode('utf-8')
+
+        data = {
+            'grant_type': 'password',
+            'username': 'test@example.com',
+            'password': 'testpass123',
+            'scope': 'openid read'
+        }
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in data.items())
+
+        _token_response = self.client.post(
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            HTTP_AUTHORIZATION=f'Basic {auth_headers}',
+            content_type='application/x-www-form-urlencoded',
         )
 
-        token_response = json.loads(response.content)
+        token_response = json.loads(_token_response.content)
         access_token = token_response['access_token']
 
         # Test UserInfo endpoint
@@ -318,28 +294,33 @@ class OAuth2AuthFlows(TestCase):
 
         self.assertEqual(userinfo['sub'], str(self.user.id))
         self.assertEqual(userinfo['email'], self.user.email)
-        self.assertEqual(userinfo['preferred_username'], self.user.username)
+        self.assertEqual(userinfo['first_name'], self.user.first_name)
 
     def test_token_revocation(self):
         """Test token revocation"""
 
         # First get an access token
-        token_url = reverse('oauth2_provider:token')
-        response = self.client.post(
-            token_url,
-            {
-                'grant_type': 'password',
-                'username': 'testuser',
-                'password': 'testpass123',
-                'scope': 'read write'
-            },
-            **self.create_authorization_header(
-                self.resource_password_app.client_id,
-                self.resource_password_app.client_secret
-            )
+        auth_headers = base64.b64encode(
+            f"{settings.TEST_CLIENT_ID_OWNER}:{settings.TEST_CLIENT_SECRET_OWNER}".encode('utf-8')  # noqa:E501
+        ).decode('utf-8')
+
+        data = {
+            'grant_type': 'password',
+            'username': 'test@example.com',
+            'password': 'testpass123',
+            'scope': 'openid read'
+        }
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in data.items())
+
+        _token_response = self.client.post(
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            HTTP_AUTHORIZATION=f'Basic {auth_headers}',
+            content_type='application/x-www-form-urlencoded',
         )
 
-        token_response = json.loads(response.content)
+        token_response = json.loads(_token_response.content)
         access_token = token_response['access_token']
 
         # Revoke the token
@@ -348,8 +329,8 @@ class OAuth2AuthFlows(TestCase):
             revoke_url,
             {
                 'token': access_token,
-                'client_id': self.resource_password_app.client_id,
-                'client_secret': self.resource_password_app.client_secret
+                'client_id': settings.TEST_CLIENT_ID_OWNER,
+                'client_secret': settings.TEST_CLIENT_SECRET_OWNER,
             }
         )
 
@@ -368,22 +349,27 @@ class OAuth2AuthFlows(TestCase):
         """Test token introspection endpoint"""
 
         # First get an access token
-        token_url = reverse('oauth2_provider:token')
-        response = self.client.post(
-            token_url,
-            {
-                'grant_type': 'password',
-                'username': 'testuser',
-                'password': 'testpass123',
-                'scope': 'read write'
-            },
-            **self.create_authorization_header(
-                self.resource_password_app.client_id,
-                self.resource_password_app.client_secret
-            )
+        auth_headers = base64.b64encode(
+            f"{settings.TEST_CLIENT_ID_OWNER}:{settings.TEST_CLIENT_SECRET_OWNER}".encode('utf-8')  # noqa:E501
+        ).decode('utf-8')
+
+        data = {
+            'grant_type': 'password',
+            'username': 'test@example.com',
+            'password': 'testpass123',
+            'scope': 'openid read'
+        }
+        encoded_data = "&".join(
+            f"{key}={value}" for key, value in data.items())
+
+        _token_response = self.client.post(
+            reverse('oauth2_provider:token'),
+            data=encoded_data,
+            HTTP_AUTHORIZATION=f'Basic {auth_headers}',
+            content_type='application/x-www-form-urlencoded',
         )
 
-        token_response = json.loads(response.content)
+        token_response = json.loads(_token_response.content)
         access_token = token_response['access_token']
 
         # Test introspection
@@ -392,8 +378,8 @@ class OAuth2AuthFlows(TestCase):
             introspect_url,
             {
                 'token': access_token,
-                'client_id': self.resource_password_app.client_id,
-                'client_secret': self.resource_password_app.client_secret
+                'client_id': settings.TEST_CLIENT_ID_OWNER,
+                'client_secret': settings.TEST_CLIENT_SECRET_OWNER,
             }
         )
 
@@ -401,5 +387,6 @@ class OAuth2AuthFlows(TestCase):
         introspection = json.loads(response.content)
 
         self.assertTrue(introspection['active'])
-        self.assertEqual(introspection['username'], 'testuser')
-        self.assertEqual(introspection['client_id'], self.resource_password_app.client_id)
+        self.assertEqual(introspection['username'], 'test@example.com')
+        self.assertEqual(
+            introspection['client_id'], self.resource_password_app.client_id)

@@ -44,7 +44,7 @@ INSTALLED_APPS += LOCAL_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'corsheaders.middleware.CorsMiddleware',    # Above CommonMiddleware & WhiteNoiseMiddleware - *from docs
+    'corsheaders.middleware.CorsMiddleware',    # Above CommonMiddleware & WhiteNoiseMiddleware - *from docs. # noqa: E501
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',

@@ -12,7 +12,9 @@ class AuthyOAuth2Validator(OAuth2Validator):
         }
 
     def get_userinfo_claims(self, request):
-        return super().get_userinfo_claims(request)
+        initial_data = super().get_userinfo_claims(request)
+        initial_data.update(self.get_additional_claims(request))
+        return initial_data
 
     def validate_silent_login(self, request) -> None:
         pass
