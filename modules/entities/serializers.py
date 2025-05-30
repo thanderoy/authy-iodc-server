@@ -9,10 +9,10 @@ USER_MODEL = get_user_model()
 class EntitySerializer(serializers.ModelSerializer):
 
     confirm_password = serializers.CharField(write_only=True, required=True)
-    organizations = serializers.PrimaryKeyRelatedField(
-        queryset=Entity.objects.filter(
-            entity_type=Entity.EntityType.ORGANIZATION), many=True, required=False  # noqa
-        )
+    # organizations = serializers.PrimaryKeyRelatedField(
+    #     queryset=Entity.objects.filter(
+    #         entity_type=Entity.EntityType.GROUP), many=True, required=False  # noqa
+    #     )
     # parent_entities = serializers.StringRelatedField(many=True)
 
     class Meta:
@@ -39,10 +39,18 @@ class EntitySerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         password = validated_data.pop("password", None)
+        validated_data.pop("confirm_password", None) # Remove confirm_password
+
+        entity_type = validated_data.get('entity_type')
+        if entity_type and entity_type != Entity.EntityType.PERSON:
+            validated_data['is_system_entity'] = True
+
         instance = super().create(validated_data)
         if password is not None:
+            # set_password also saves the instance by default if commit=True (which is default)
+            # but explicit save is fine too.
             instance.set_password(password)
-            instance.save()
+            instance.save() # Ensure all changes including is_system_entity are saved
         return instance
 
     def update(self, instance, validated_data):

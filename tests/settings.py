@@ -1,5 +1,15 @@
 from config.settings import *
 
+SECRET_KEY = 'dummy-secret-key-for-testing'
+OIDC_RSA_PRIVATE_KEY = "dummy_rsa_key_content_for_testing_only_not_secure"
+
+# Ensure 'read' scope is available for tests
+if 'SCOPES' in OAUTH2_PROVIDER:
+    OAUTH2_PROVIDER['SCOPES']['read'] = "Read scope for testing"
+else:
+    OAUTH2_PROVIDER['SCOPES'] = {"read": "Read scope for testing"}
+
+
 TEST_CLIENT_ID_AUTH_CODE = 'HJOcM6BcofbUOBERoepeTlgVBVeCif28uENtesta'
 TEST_CLIENT_SECRET_AUTH_CODE = '4r77VTIWCgKbxlB7bdXjHDupqkIDFwbjWc41tgWzWjPkh0BTc7UQ6jbjEwY4XZkCSDJqfgRly4Z5qKephmobf7p3rSP31uGTxCBby35kidgF0pXgaZ7olRGyn23ES8Ga'
 

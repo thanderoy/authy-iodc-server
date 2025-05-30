@@ -32,7 +32,7 @@ class OAuth2AuthFlows(TestCase):
             client_type=Application.CLIENT_CONFIDENTIAL,
             authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
             redirect_uris='http://localhost:8000/callback',
-            user=self.user, algorithm='RS256',
+            user=self.user, algorithm=Application.HS256_ALGORITHM, # Changed to HS256
             client_id=settings.TEST_CLIENT_ID_AUTH_CODE,
             client_secret=settings.TEST_CLIENT_SECRET_AUTH_CODE,
         )
@@ -64,6 +64,7 @@ class OAuth2AuthFlows(TestCase):
             client_type=Application.CLIENT_CONFIDENTIAL,
             authorization_grant_type=Application.GRANT_PASSWORD,
             user=self.user,
+            algorithm=Application.HS256_ALGORITHM, # Explicitly set HS256
             client_id=settings.TEST_CLIENT_ID_OWNER,
             client_secret=settings.TEST_CLIENT_SECRET_OWNER,
         )
