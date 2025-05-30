@@ -54,14 +54,14 @@ class PersonManager(EntityManager):
 
     def get_queryset(self):
 
-        return self.model.filter(entity_type=self.model.EntityType.PERSON)
+        return super().get_queryset().filter(entity_type=self.model.EntityType.PERSON)
 
 
 class GroupManager(EntityManager):
 
     def get_queryset(self):
 
-        return self.model.filter(entity_type=self.model.EntityType.GROUP)
+        return super().get_queryset().filter(entity_type=self.model.EntityType.GROUP)
 
 
 class Entity(AuthyBaseModel, AbstractBaseUser, PermissionsMixin):

@@ -4,8 +4,12 @@ from modules.entities import views
 
 app_name = "entities"
 
+from django.urls import path
+
 router = SimpleRouter()
 router.register("entities", views.EntityViewSet)
 
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("me/", views.EntityMeViewset.as_view(), name="entity-me"),
+] + router.urls

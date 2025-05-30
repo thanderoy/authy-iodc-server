@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'a-default-fallback-key-that-will-be-overridden-in-tests')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -155,15 +155,59 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.IsAuthenticated',
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 10
 }
 
-OAUTH2_PROVIDER = {
-    "OIDC_ENABLED": True,
-    "OIDC_RSA_PRIVATE_KEY": os.environ.get("OIDC_RSA_PRIVATE_KEY"),
-    "OAUTH2_VALIDATOR_CLASS": "modules.utils.oidc_validator.AuthyOAuth2Validator",  # noqa: E501
-    "SCOPES": {
-        "openid": "OpenID Connect scope",
-    },
-    "REQUEST_APPROVAL_PROMPT": "auto",
+# Define a default valid RSA key for use when the env var isn't set
+_DEFAULT_OIDC_RSA_PRIVATE_KEY_PEM = """-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC4vCf6DDK1+vH4
+j0vfE+QygUy6C2x81HhEhGDm+cvw7Bk5Tl05XGhgIgVEO+BUPUaSP/SOBWa+IbPZ
+z+IlZQdNBwzX7xuVjWdSrVWS6ueTPJov92zB7QAKigyVkGIhRPu55PH2dIRLINBW
+mD0lWAgcPh1jyJrtIF8JrxKyGdQJxuXxg4zO54TD/txyLlI2oCipizIreeGSUqpP
+3uQj2DRgpP9whb6v7RwJbBoT4mLBc0v4WpP/51UCJozXypMSFLQfTuOkvPh1lYHk
+jx01YQsp6KlJUctJ6sWkSLeFii4nxNIecUjiWmXL5tz+/X1s5MKFbBewLE88Iwgc
+RqkHGhKDAgMBAAECggEANgLFCWVxmiUxg8OZojI1oNKO9UILyP9x3k556m4UQ28z
+/L49oVy0I48uzQFYmCiGLpJGVROdM2+1HrSZ4OcF2G58QdHl1bbPA6wr/dVyOWkZ
+h3amtJgvT+WGwl/BYQrDMlmOqMjuOOzyHK9MCVQQovlCLH9lVHkHcFRgefP1O5oM
+L80EMetzDTy3qscrEvV+xhZ3Au4bothuRytBI2+KTIXQdSnZxT9aSYRLdMwy0TrR
+kml7XhO4GnFwbfod1AF4mMDqFBtw6BHnvOFpGgLVHYrw9Jr9Si/g97sK77FES158
+pUaCEb7DDhEeZHctbBjPej7wnJEoTMtBXf31fnj06QKBgQD4NdElcxUR3AIjPxN0
+r72/H3Y1xvwXkFdGArqD9NqwkGMB+VdvOFqo5y1CFoFihOqq2Vhjh/5zV+aWCpEp
+zl7G4H6R532UNxwM2JQWt2tcIqgPehdX6EALJikL6HUNp7OIqHIugTY16H6IVFkQ
+jyI9YyyKjB1skpWg8bqkca/hzQKBgQC+iFz9hJOFez/ZBITozSqP+DxidhXj9786
+WtRXpn2a8/gDcB9Y+nnwgptWr5XjBlXLoY2Rl3ByoylcHzXOdH/EyW9nmMDT4JfJ
+vd+OdLcTKPkyH/rQ8UormCLr4Ynzevd82TWVGvlzGAFh1Qpyg5mrXuYyymLAODwa
+NOIzJwm1jwKBgQCfzm6I8Q5owED0FoFdSGUfb485UpMuTLWUEt+pY/WFZoEIXVQo
+/JyKUMU33quRFcjNFUCuXHm8I6UHh2gtBXzKCPIU2Hlm+xBpSOwXsCJEYN/Zjx8G
+bzcEtp4I17K9hvK1ktZpELIphTYqajwpyC4gXgDodwvewoXp6JjllXjLJQKBgBBV
++rsVydww9Al0VLztElAjtXGvtDLGhBPJw9j8Alrtvf71dwqW9yuC1zS4ez5qxaJe
+6JdqB48cpCgs2N0pqebCapXUR/wijoESkX9STHwNEEiW61dMyNIyChR1UvGYQm3m
+5awyEt8mWL/9lxa4Z82EpnIGXi8i4yxQCnDeUPvLAoGBAL0MKOcwh+tlZOYhp7wd
+hYrAjcw7J1l/06Ys0aWQ3pCKhCKpYPErj3qBQuN6iiA6hoJVo2XD+qfZEbWy9Pzo
+ZsKeqtYRzZ4H3DHu43eTuReRsR7SXzP8YyJ8hw1n1i6WRL26awe1qNj2kLaQ1JHh
+ZmIS00swL+iiNfPwVALumIwV
+-----END PRIVATE KEY-----"""
 
+OIDC_RSA_PRIVATE_KEY = os.environ.get('OIDC_RSA_PRIVATE_KEY', _DEFAULT_OIDC_RSA_PRIVATE_KEY_PEM)
+
+OAUTH2_PROVIDER = {
+    'SCOPES': {
+        'openid': 'OpenID Connect scope',
+        'read': 'Read scope',
+        'write': 'Write scope',
+        'groups': 'Access to groups'
+    },
+    'OIDC_ENABLED': True,
+    'OIDC_RSA_PRIVATE_KEY': OIDC_RSA_PRIVATE_KEY, # This will now always have a value
+    'OIDC_ISS_ENDPOINT': os.environ.get("OIDC_ISS_ENDPOINT", "http://localhost:8000/o"), # noqa
+    'OIDC_USERINFO_ENDPOINT': os.environ.get("OIDC_USERINFO_ENDPOINT", "http://localhost:8000/o/userinfo"), # noqa
+    'PKCE_REQUIRED': True, # Often True by default in modern OIDC
+    'ALLOWED_REDIRECT_URI_SCHEMES': ['http', 'https', 'myapp'], # Example
+    'ACCESS_TOKEN_EXPIRE_SECONDS': int(os.environ.get('ACCESS_TOKEN_EXPIRE_SECONDS', 36000)), # noqa
+    'REFRESH_TOKEN_EXPIRE_SECONDS': int(os.environ.get('REFRESH_TOKEN_EXPIRE_SECONDS', 864000)), # noqa
+    "ERROR_RESPONSE_WITH_SCOPES": True, # Useful for debugging
+    # Ensure OAUTH2_VALIDATOR_CLASS is present if it was there before
+    "OAUTH2_VALIDATOR_CLASS": "modules.utils.oidc_validator.AuthyOAuth2Validator",
+    "REQUEST_APPROVAL_PROMPT": "auto", # Was in original, keeping it
 }

@@ -7,3 +7,6 @@ django-shortcuts==1.6
 djangorestframework==3.15.2
 ipython==8.28.0
 virtualenv==20.27.0
+dj_database_url
+drf_spectacular
+djangorestframework-simplejwt

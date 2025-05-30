@@ -6,4 +6,5 @@ from oauth2_provider import urls as oauth2_urls
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('o/', include(oauth2_urls)),
+    path('api/entities/', include('modules.entities.urls', namespace='entities')),
 ]
