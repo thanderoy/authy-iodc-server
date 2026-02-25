@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Create Account - Authy{% endblock %}
+
+{% block content %}
+<div class="auth-header">
+    <h1>Create an Account</h1>
+    <p>Join Authy IAM to manage your identity securely.</p>
+</div>
+
+<form method="post" action="{% url 'register' %}">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors.0 }}
+        </div>
+    {% endif %}
+
+    <div class="form-group" style="display: flex; gap: 15px;">
+        <div style="flex: 1;">
+            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+            <input type="text" name="{{ form.first_name.name }}" id="{{ form.first_name.id_for_label }}"
+                   class="form-input" placeholder="John" required autofocus
+                   {% if form.first_name.value %}value="{{ form.first_name.value }}"{% endif %}>
+            {{ form.first_name.errors }}
+        </div>
+        <div style="flex: 1;">
+            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+            <input type="text" name="{{ form.last_name.name }}" id="{{ form.last_name.id_for_label }}"
+                   class="form-input" placeholder="Doe" required
+                   {% if form.last_name.value %}value="{{ form.last_name.value }}"{% endif %}>
+            {{ form.last_name.errors }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.email.id_for_label }}" class="form-label">Email Address</label>
+        <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}"
+               class="form-input" placeholder="name@company.com" required
+               {% if form.email.value %}value="{{ form.email.value }}"{% endif %}>
+        {{ form.email.errors }}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.password1.id_for_label }}" class="form-label">Password</label>
+        <input type="password" name="{{ form.password1.name }}" id="{{ form.password1.id_for_label }}"
+               class="form-input" placeholder="Create a strong password" required>
+        {{ form.password1.errors }}
+        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.25rem; display: block;">
+            Must be at least 12 characters long.
+        </small>
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.password2.id_for_label }}" class="form-label">Password confirmation</label>
+        <input type="password" name="{{ form.password2.name }}" id="{{ form.password2.id_for_label }}"
+               class="form-input" placeholder="Repeat your password" required>
+        {{ form.password2.errors }}
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+        Complete Registration
+    </button>
+</form>
+
+<div class="auth-footer">
+    <p>Already have an account? <a href="{% url 'login' %}" class="auth-link">Sign in instead</a></p>
+</div>
+{% endblock %}
