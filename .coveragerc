@@ -1,0 +1,23 @@
+[run]
+omit =
+    src/manage.py
+    src/config/asgi.py
+    src/config/wsgi.py
+    src/config/settings.py
+    src/config/urls.py
+    **/__init__.py
+    src/modules/*/migrations/*
+    src/modules/*/admin.py
+    src/modules/*/apps.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __str__
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    pass
+    except ImportError:
