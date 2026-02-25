@@ -51,9 +51,7 @@ LOCAL_APPS = [
 THIRD_PARTY_APPS = []
 
 # Add apps based on environment
-if DEBUG:
-    THIRD_PARTY_APPS += ["debug_toolbar"]
-else:
+if not DEBUG:
     THIRD_PARTY_APPS += ["django_prometheus"]  # For production monitoring
 
 INSTALLED_APPS += THIRD_PARTY_APPS + LOCAL_APPS
@@ -77,9 +75,7 @@ MIDDLEWARE = [
 ]
 
 # Add environment-specific middleware
-if DEBUG:
-    MIDDLEWARE.insert(0, "debug_toolbar.middleware.DebugToolbarMiddleware")
-else:
+if not DEBUG:
     MIDDLEWARE.insert(0, "django_prometheus.middleware.PrometheusBeforeMiddleware")
     MIDDLEWARE.append("django_prometheus.middleware.PrometheusAfterMiddleware")
 
@@ -393,10 +389,3 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
-
-# Debug Toolbar (development only)
-if DEBUG:
-    INTERNAL_IPS = ["127.0.0.1", "localhost"]
-    DEBUG_TOOLBAR_CONFIG = {
-        "SHOW_TOOLBAR_CALLBACK": lambda request: DEBUG,
-    }
