@@ -2,6 +2,22 @@ from rest_framework import permissions, viewsets, generics
 from rest_framework.response import Response
 from modules.entities.models import Entity
 from modules.entities.serializers import EntitySerializer, EntityMeSerializer
+from modules.entities.forms import CustomUserCreationForm
+from django.views.generic.edit import CreateView
+from django.urls import reverse_lazy
+from django.contrib.auth import login
+
+
+class RegisterView(CreateView):
+    template_name = "registration/register.html"
+    form_class = CustomUserCreationForm
+    success_url = reverse_lazy("login")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        # Log the user in after registration
+        login(self.request, self.object)
+        return response
 
 
 class EntityViewSet(viewsets.ModelViewSet):
