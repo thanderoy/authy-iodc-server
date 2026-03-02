@@ -1,0 +1,52 @@
+{% extends "console/console_base.html" %}
+
+{% block title %}Security Options - Authy{% endblock %}
+
+{% block console_content %}
+<div class="console-header">
+    <h1>Security Options</h1>
+    <p>Update your password to keep your account secure.</p>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors.0 }}
+        </div>
+    {% endif %}
+
+    <div class="form-group">
+        <label for="{{ form.old_password.id_for_label }}" class="form-label">Current Password</label>
+        <input type="password" name="{{ form.old_password.name }}" id="{{ form.old_password.id_for_label }}"
+               class="form-input form-input-constrained" required autofocus>
+        {{ form.old_password.errors }}
+    </div>
+
+    <div class="form-divider"></div>
+
+    <div class="form-group">
+        <label for="{{ form.new_password1.id_for_label }}" class="form-label">New Password</label>
+        <input type="password" name="{{ form.new_password1.name }}" id="{{ form.new_password1.id_for_label }}"
+               class="form-input form-input-constrained" required>
+        {{ form.new_password1.errors }}
+        {% if form.new_password1.help_text %}
+            <small class="form-help-text" style="max-width: 400px;">
+                {{ form.new_password1.help_text|safe }}
+            </small>
+        {% endif %}
+    </div>
+
+    <div class="form-group">
+        <label for="{{ form.new_password2.id_for_label }}" class="form-label">Confirm New Password</label>
+        <input type="password" name="{{ form.new_password2.name }}" id="{{ form.new_password2.id_for_label }}"
+               class="form-input form-input-constrained" required>
+        {{ form.new_password2.errors }}
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-fit btn-submit">
+        Update Password
+    </button>
+</form>
+{% endblock %}

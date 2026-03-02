@@ -184,7 +184,7 @@ SPECTACULAR_SETTINGS = {
 
 # Authentication
 AUTH_USER_MODEL = "entities.Entity"
-LOGIN_URL = "/admin/login/"
+LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "/"
 LOGOUT_REDIRECT_URL = "/"
 
