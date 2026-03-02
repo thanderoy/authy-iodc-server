@@ -333,6 +333,19 @@ h1, h2, h3 {
     max-width: 400px;
 }
 
+/* App Branding Header Logo (Contextual) */
+.brand-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.brand-logo img {
+    height: 48px;
+    width: auto;
+}
+
 /* Divider */
 .form-divider {
     border-top: 1px solid var(--border-color);
