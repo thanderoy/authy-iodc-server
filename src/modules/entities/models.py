@@ -1,11 +1,26 @@
+import re
+
+from django.conf import settings
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
     PermissionsMixin,
 )
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from modules.common.models import AuthyBaseModel
+
+HEX_COLOR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def validate_hex_color(value: str) -> None:
+    """Ensure ``value`` is a strict 3‑ or 6‑digit hex color."""
+    if not HEX_COLOR_RE.match(value):
+        raise ValidationError(
+            "%(value)s is not a valid hex color (expected #RGB or #RRGGBB).",
+            params={"value": value},
+        )
 
 
 class EntityManager(BaseUserManager):
@@ -145,3 +160,37 @@ class Relationship(AuthyBaseModel):
 
     def __str__(self) -> str:
         return f"{self.relationship_type} - ({self.parent} -> {self.child})"
+
+
+class ApplicationBranding(AuthyBaseModel):
+    """Stores UI branding configuration for an OAuth2 Application.
+
+    When a user arrives at the login page via an OIDC flow, the ``client_id``
+    query parameter is used to look up the matching branding record. The
+    template then renders the application's custom logo, colors, and name
+    instead of the default Authy branding.
+    """
+
+    application = models.OneToOneField(
+        settings.OAUTH2_PROVIDER_APPLICATION_MODEL,
+        on_delete=models.CASCADE,
+        related_name="branding",
+    )
+    logo_url = models.URLField(
+        max_length=500,
+        blank=True,
+        help_text="URL to the application's logo image (displayed on login/register screens).",
+    )
+    brand_color = models.CharField(
+        max_length=7,
+        blank=True,
+        validators=[validate_hex_color],
+        help_text="Primary brand hex color (e.g. #1C352D) used for buttons and accents.",
+    )
+
+    class Meta:
+        verbose_name = "Application Branding"
+        verbose_name_plural = "Application Brandings"
+
+    def __str__(self) -> str:
+        return f"Branding for {self.application.name}"

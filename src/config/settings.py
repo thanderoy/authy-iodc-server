@@ -254,7 +254,10 @@ OAUTH2_PROVIDER = {
     ),
     "ROTATE_REFRESH_TOKEN": True,  # Security best practice
     "PKCE_REQUIRED": True,  # Enforce PKCE for public clients
+    "APPLICATION_MODEL": "oauth2_provider.Application",
 }
+
+OAUTH2_PROVIDER_APPLICATION_MODEL = "oauth2_provider.Application"
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),

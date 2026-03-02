@@ -1,25 +1,38 @@
 {% load static %}
+{% load branding_filters %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Authy Identity Provider{% endblock %}</title>
+    <title>{% block title %}{% if app_name %}{{ app_name }}{% else %}Authy Identity Provider{% endif %}{% endblock %}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
     <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 
+    {% if branding and branding.brand_color|safe_brand_color %}
     <style>
-        /* Base styles handled by styles.css now */
+        :root {
+            --primary: {{ branding.brand_color|safe_brand_color }};
+            --primary-hover: {{ branding.brand_color|safe_brand_color }};
+            --primary-light: {{ branding.brand_color|safe_brand_color }}1a;
+        }
     </style>
+    {% endif %}
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     {% block main %}
     <main class="auth-container">
         <div class="card-panel">
+            {% if branding and branding.logo_url %}
+            <div class="brand-logo">
+                <img src="{{ branding.logo_url }}" alt="{{ app_name }} logo">
+            </div>
+            {% endif %}
+
             {% if messages %}
                 <div class="messages">
                     {% for message in messages %}
