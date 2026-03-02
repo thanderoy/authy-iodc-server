@@ -1,0 +1,51 @@
+{% extends "console/console_base.html" %}
+
+{% block title %}Active Devices - Authy{% endblock %}
+
+{% block console_content %}
+<div class="console-header">
+    <h1>Active Devices</h1>
+    <p>Review the active sessions and devices where your account is currently signed in.</p>
+</div>
+
+<div class="sessions-list">
+    {% for session in active_sessions %}
+    <div class="session-card">
+        <div>
+            <h3 class="session-title">
+                {% if session.session_key == current_session %}
+                    Current Device
+                    <span class="session-badge">Active</span>
+                {% else %}
+                    Other Device
+                {% endif %}
+            </h3>
+            <p class="session-detail">
+                <strong>IP Address:</strong> {{ session.ip }}
+            </p>
+            <p class="session-agent">
+                {{ session.user_agent }}
+            </p>
+        </div>
+
+        <div>
+            {% if session.session_key == current_session %}
+                <form method="post" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-secondary btn-danger-outline">
+                        Log Out
+                    </button>
+                </form>
+            {% else %}
+                <!-- Mock revoke for future implementation -->
+                <button class="btn btn-secondary" disabled style="opacity: 0.5; cursor: not-allowed;">
+                    Revoke Access
+                </button>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <p>No active sessions found.</p>
+    {% endfor %}
+</div>
+{% endblock %}

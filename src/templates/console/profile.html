@@ -1,0 +1,47 @@
+{% extends "console/console_base.html" %}
+
+{% block title %}Personal Info - Authy{% endblock %}
+
+{% block console_content %}
+<div class="console-header">
+    <h1>Personal Information</h1>
+    <p>Manage your basic profile details and how you appear to federated apps.</p>
+</div>
+
+<form method="post">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+        <div class="alert alert-error">
+            {{ form.non_field_errors.0 }}
+        </div>
+    {% endif %}
+
+    <div class="form-group form-row">
+        <div class="form-col">
+            <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name</label>
+            <input type="text" name="{{ form.first_name.name }}" id="{{ form.first_name.id_for_label }}"
+                   class="form-input" value="{{ form.first_name.value|default:'' }}" required>
+            {{ form.first_name.errors }}
+        </div>
+        <div class="form-col">
+            <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name</label>
+            <input type="text" name="{{ form.last_name.name }}" id="{{ form.last_name.id_for_label }}"
+                   class="form-input" value="{{ form.last_name.value|default:'' }}" required>
+            {{ form.last_name.errors }}
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Primary Email Address</label>
+        <input type="email" class="form-input form-input-disabled" value="{{ request.user.email }}" readonly disabled>
+        <small class="form-help-text">
+            Email addresses are used as primary identifiers and cannot be changed without verification.
+        </small>
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-fit btn-submit">
+        Save Changes
+    </button>
+</form>
+{% endblock %}
